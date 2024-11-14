@@ -18,7 +18,7 @@ Exploration consists the development of conversational AI agents engaging in dia
 
 - <b>Macbook M2 chip Air</b> (21H2)
 
-<h2> Project 1: LLM-Powered AI agents Dialogue Conversation</h2>
+<h2> Project 1: LLM-Powered AI Agent Dialogue Conversation Model</h2>
 <p> At the start of the project, we heavily focused on wanting to explore how two different chatbots can pragmatically adapt to each other and explore the conversations that could be developed in the process--exploring the capabilities of dynamic conversational agents. Thereby, we utilised 'gpt-4' as our API-based LLM model that would power the chatbots and then set up an environment that could create two different AI chatbot personas and then engage them in turn-taking dialogue. </p>
 
 <p> One of the biggest challenges faced was figuring out how to "naturally" end the conversation and not have the chatbots continue their dialogue forever--which would serve as a long-term fianncial burden. At first, there was exploration of the utilisation of sentiment analysis--where there would be a dataset of "negative" phrases that would be phrases typically said to signify the end of a conversation such as "wow! look at the time, can't believe how much time has passed!" or "well, it was so nice catching with you!". Then, there would be one "negative" phrase that would be randomly selected and another random selection between 1 to 10 that would determine when the random phrase would be inserted in the chatbot dialogue conversation. </p> 
@@ -29,5 +29,5 @@ Exploration consists the development of conversational AI agents engaging in dia
 
 <p> Through this project, it provided great insight on the capabilities of prompt engineering as well as exploring the potential of chatbot dialogue conversation. </p> 
 
-<h2> Project 2: Machine-Learned Conversational agents Dialogue Conversation</h2>
+<h2> Project 2: Non-LLM Powered Dual AI Agent Dialogue Conversation Model</h2>
 <p> After creating a successful model of dual-chatbot dialogue conversation powered by 'gpt-4', there was more exploration in how to create this same type of dynamic without the use of 'gpt-4'. For greater scalability and cost efficiency, this served as an interesting area of exploration in testing out how to create a dual-chatbot conversation without it being an API-based model. The code below is still in the progress of development but serves as an interesting introuction for the development of this new type of model. </p>
