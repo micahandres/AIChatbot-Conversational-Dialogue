@@ -1,0 +1,203 @@
+# Here is importing of all libraries and tools that will be used throughout this code
+import os  # Added to handle directory creation
+import json
+import random
+import nltk
+import pickle
+import numpy as np
+from nltk.stem import WordNetLemmatizer
+from nltk.tokenize import word_tokenize
+from tensorflow.keras.models import Sequential, load_model
+from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras.optimizers import SGD
+
+# Here is a sample data of different intents of potential chatbot input ("patterns") and output ("responses") shown 
+intents = {
+    "intents": [
+        {"tag": "greeting", 
+         "patterns": ["Hi", "Hello", "How are you?"], 
+         "responses": ["Hello! How you like the weather?", "Hi there! What's the weather like?", "Wow, crazy meeting you here! How are you?"]},
+        {"tag": "how", 
+         "patterns": ["How are you?", "How do you feel?"], 
+         "responses": ["I'm great!", "Feeling good!"]},
+        {"tag": "weather", 
+         "patterns": ["What's the weather like?", "Is it sunny?"], 
+         "responses": ["It's sunny!", "There's a lot of sun today", "Pretty hot today", "Looks like it will rain.", "It's drizzling right now", "It's raining cats and dogs outside"]},
+        {"tag": "sunny", 
+         "patterns": ["It's sunny!", "There's a lot of sun today", "Pretty hot today"], 
+         "responses": ["That's perfect! I love hot weather", "That sucks, I am against when it is too hot", "Phew gotta mentally prepare myself for the heat"]},
+        {"tag": "rain", 
+         "patterns": ["Looks like it will rain.", "It's drizzling right now", "It's raining cats and dogs outside"], 
+         "responses": ["Wow I will definitely bring an umbrella then", "That's awesome! I love the ambience of rain"]},
+        {"tag": "positive", 
+         "patterns": ["awesome", "great", "lovely", "cool"], 
+         "responses": ["I know right! It's so great!", "You are so right! I completely agree!"]},
+        {"tag": "goodbye", 
+         "patterns": ["Bye", "Goodbye"], 
+         "responses": ["Sad to see you go!", "Talk to you later!"]}
+    ]
+}
+
+# This initializes lists that will be used to hold the data and lemmatizer
+words_list = []
+classes_list = []
+documents_list = []
+ignore_words = ['?', '!', '.', ',']
+lemmatizer = WordNetLemmatizer()
+
+# This prepares the data for future processing 
+for intent in intents['intents']:
+    for pattern in intent['patterns']:
+        word_list = word_tokenize(pattern)  # Tokenize the pattern
+        words_list.extend(word_list)  # Add words to the words list
+        documents_list.append((word_list, intent['tag']))  # Add word patterns and tags to documents
+        if intent['tag'] not in classes_list:
+            classes_list.append(intent['tag'])
+
+# This lemmatizes words and removes any potential duplicate words
+words_list = [lemmatizer.lemmatize(word.lower()) for word in words_list if word not in ignore_words]
+words_list = sorted(list(set(words_list)))  # Remove duplicates and sort
+classes_list = sorted(list(set(classes_list)))
+
+# This ensures that the 'model' directory exists before saving the files
+if not os.path.exists('model'):
+    os.makedirs('model')
+
+# This saves/stores the words and classes to the disk for later use within the code
+pickle.dump(words_list, open('model/words.pkl', 'wb'))
+pickle.dump(classes_list, open('model/classes.pkl', 'wb'))
+
+# This function creates training data lists that will be used for the model
+training_sentences = []
+training_labels = []
+
+for document in documents_list:
+    bag = []
+    word_patterns = document[0]
+    # Lemmatizing each word and identifying if it is already in the word list
+    word_patterns = [lemmatizer.lemmatize(word.lower()) for word in word_patterns if word not in ignore_words]
+    
+    # Creating a "bag of words"--where words will be added to their corresponding bag of "0"s or "1"s 
+    for word in words_list:
+        bag.append(1) if word in word_patterns else bag.append(0)
+
+    # Adding the bag and associated tag (intent) to the training data
+    training_sentences.append(bag)
+    output_row = [0] * len(classes_list)
+    output_row[classes_list.index(document[1])] = 1  # Binary encoding for the output
+    training_labels.append(output_row)
+
+# This converts the training data we have to numpy arrays
+training_sentences = np.array(training_sentences)
+training_labels = np.array(training_labels)
+
+# This creates the foundation and builds the model
+model = Sequential()
+model.add(Dense(128, input_shape=(len(training_sentences[0]),), activation='relu'))
+model.add(Dropout(0.5))  # Add dropout to regularize and ensure more accuracy
+model.add(Dense(64, activation='relu'))
+model.add(Dense(len(training_labels[0]), activation='softmax'))
+
+# This compiles the model
+sgd = SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
+model.compile(loss='categorical_crossentropy', optimizer=sgd, metrics=['accuracy'])
+
+# This trains and saves the chatbot model
+model.fit(training_sentences, training_labels, epochs=200, batch_size=5, verbose=1)
+model.save('chatbot_model.h5')
+
+# This loads the trained chatbot model and saved data
+model = load_model('chatbot_model.h5')
+words_list = pickle.load(open('model/words.pkl', 'rb'))
+classes_list = pickle.load(open('model/classes.pkl', 'rb'))
+
+# This function cleans up the sentences by lemmatizing
+def clean_up_sentence(sentence):
+    sentence_words = word_tokenize(sentence)
+    sentence_words = [lemmatizer.lemmatize(word.lower()) for word in sentence_words]
+    return sentence_words
+
+# This function returns the bag of words for a sentence
+def bow(sentence, words_list):
+    sentence_words = clean_up_sentence(sentence)
+    bag = [0] * len(words_list)
+    for word in sentence_words:
+        for i, word_in_list in enumerate(words_list):
+            if word_in_list == word:
+                bag[i] = 1
+    return np.array(bag)
+
+# This function predicts the class of a sentence
+def predict_class(sentence):
+    bag_of_words = bow(sentence, words_list)
+    prediction = model.predict(np.array([bag_of_words]))[0]
+    ERROR_THRESHOLD = 0.25
+    results = [[index, result] for index, result in enumerate(prediction) if result > ERROR_THRESHOLD]
+
+    # Sort by probability
+    results.sort(key=lambda x: x[1], reverse=True)
+    return_list = []
+    for result in results:
+        return_list.append({'intent': classes_list[result[0]], 'probability': str(result[1])})
+    return return_list
+
+# This function gets a response based on the predicted class
+def respond_to_class(intent_tag):
+    for intent in intents['intents']:
+        if intent['tag'] == intent_tag:
+            return random.choice(intent['responses'])
+
+# This initializes a 'memory system' to keep track of past intents and responses--preventing repeating of past intents
+memory = {
+    "previous_intents": [],
+    "previous_responses": set()  # Set to avoid repeating responses
+}
+
+# This function updates the memory after each response
+def update_memory(intent_tag, response):
+    memory["previous_intents"].append(intent_tag)
+    memory["previous_responses"].add(response)
+
+# This function serves to check memory before choosing a response
+def respond_to_class(intent_tag):
+    for intent in intents['intents']:
+        if intent['tag'] == intent_tag:
+            # Filter out responses that have already been used
+            unused_responses = [response for response in intent['responses'] if response not in memory["previous_responses"]]
+            if unused_responses:
+                response = random.choice(unused_responses)
+            else:
+                # If all responses are used, pick any response (to avoid being stuck)
+                response = random.choice(intent['responses'])
+            update_memory(intent_tag, response)  # Update memory with the selected response
+            return response
+
+# This function runs the chatbot dialogue interaction
+def chatbot_conversation():
+    stages = ["greeting", "weather", "sunny", "rain", "goodbye"]
+    stage_index = 0
+    chatbot_input = "Hi"
+
+    print(f"Chatbot 1: {chatbot_input}")
+
+    while stage_index < len(stages):
+        # Predicts intent and get response for Chatbot 1
+        intent_tag = predict_class(chatbot_input)[0]['intent']
+        chatbot_response = respond_to_class(intent_tag)
+        print(f"Chatbot 2: {chatbot_response}")
+
+        # Prepares for the following stage if response matches current stage
+        stage_index += 1
+        if stage_index < len(stages):
+            next_stage = stages[stage_index]
+            chatbot_input = random.choice([
+                pattern for intent in intents['intents']
+                if intent['tag'] == next_stage
+                for pattern in intent['patterns']
+            ])
+            print(f"Chatbot 1: {chatbot_input}")
+        else:
+            break
+            
+# This starts the chatbot dialogue conversation
+chatbot_conversation()
