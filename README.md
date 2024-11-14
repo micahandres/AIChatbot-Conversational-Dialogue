@@ -5,7 +5,7 @@ Exploration consists the development of conversational AI agents engaging in dia
 
 <li>Project 1: The first project focuses on developing LLM-powered AI agents and engaging them in conversation, exploring the effects of different prompt engineering techniques to best execute the most natural flow of conversation. </li>
 
-<li>Project 2: As a continuation of project 1, the second project focuses on the development of dual-AI agent conversations without the use of an API-based model and utilization of a NLP tools to execute a flow of conversation between two chatbots. </li>
+<li>Project 2: As a continuation of project 1, the second project focuses on the development of dual-AI agent conversations without the use of an API-based model and utilization of NLP tools to execute a flow of conversation between two chatbots. </li>
 
 
 <h2>Languages and Utilities Used</h2>
