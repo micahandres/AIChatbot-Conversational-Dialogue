@@ -1,4 +1,4 @@
-<h1> Exploring Dual AI Chatbot Conversational Dialogue</h1>
+<h1> Exploring Dual AI Chatbot Conversational Dialogue Models</h1>
 
 <h2>Description</h2>
 Exploration consists the development of conversational AI agents engaging in dialogue conversation with each other and understanding the adapability of AI agents in conversational speech. 
