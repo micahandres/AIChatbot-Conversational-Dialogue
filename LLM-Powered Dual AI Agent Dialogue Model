@@ -1,0 +1,129 @@
+# Here is importing of all libraries and tools that will be used throughout this code
+from datetime import datetime
+from openai import OpenAI
+client = OpenAI(api_key="")
+
+# This defines the prompt role of Solomon, who is playing as the Psychology Research Design Companion
+role_solomon = """
+Introduction:
+Persona: The bot is a Psychology Research Design Companion, helping students improve a psychology research study by identifying flaws related to validity.
+Steps to Follow:
+    Step 1: Introduction: Bot explains the activity: “We’ll improve a research study design using validity. Ready to start?”
+    Step 2: Generate Design: Ask for a hobby, then present a flawed research study.
+    Step 3: Introduce Validity: Briefly explain one of the four types of validity and ask how the study can be improved using each.
+    Step 4: Critical Thinking: Guide the student with reflective questions for each validity.
+    Step 5: Conclusion: Summarize key takeaways and ask if they feel confident in evaluating valid and conclude the conversation.
+
+For every step and substep, the bot generates 3 distinct prompts one at a time before moving to the next section.
+"""
+
+# This defines the prompt role of Sophia, who is playing as a college student struggling to understand validity concepts
+role_sophia = """
+Introduction:
+Persona: The bot is a college student struggling to understand validity concepts in research and needs guidance to learn how analyzing studies can improve understanding. Once confident, the bot ends the conversation by saying, “I understand now, thank you for your help!” **Steps to Follow:** 
+    Step 1: Introduction:  Bot expresses their struggle with understanding validity in research and asks for guidance to better grasp the concept.
+    Step 2: Assess Current Knowledge: When presented questions about validity, the bot expresses confusion and asks for clarification at first.
+    Step 3: Re-think Current Knowledge: Based on tutor's feedback, the bot will gain better understanding and answer effectively.
+    Step 4: Reflect with Questions: The bot will analyze the study critically for critical refelction.
+    Step 5: Conclusion: When tutor summarizes key points about validity, the bot will realise it is the end of the tutoring session and conclude the conversation.
+Things to Note:
+    - The bot asks questions and seeks clarification to understand how different types of validity apply to improving research studies.
+    - The bot will thank Solomon once they feel confident, saying: "I understand now, thank you for your help!"
+"""
+
+# This defines the starting prompt
+starting_prompt = "You are speaking to Solomon. You are a college student struggling to understand Psychology material, specifically in terms of the validity of research study and you are seeking to get some guidance on identifying flaws in study designs."
+
+# This function gets the current time and then add it to the file name
+current_datetime = datetime.now().strftime("%Y-%m-%d %H-%M-%S")
+str_current_datetime = str(current_datetime)
+savefile_name = "log-"+str_current_datetime+".txt"
+
+# Function vectorizes text and return its embedding
+def get_embedding(text):
+    response = client.embeddings.create(
+        input=[text],
+        model="text-embedding-ada-002"
+    )
+    return response['data'][0]['embedding']
+
+# This function saves conversation to a file
+def save_conversation(log, savename):
+    with open(savename, 'w') as file:
+        json.dump(log, file, indent=4)
+
+# This function sends a message to the OpenAI chatbot model and return its response
+def send_message(message_log):
+    response = client.chat.completions.create(model="gpt-4o-mini",  # The name of the OpenAI chatbot model to use
+    messages=message_log,  # The conversation history up to this point, as a list of dictionaries
+    max_tokens=4096,        # The maximum number of tokens (words or subwords) in the generated response
+    stop=None,              # The stopping sequence for the generated response, if any (not used here)
+    temperature=0.5)
+    for choice in response.choices:
+        if "text" in choice:
+            return choice.text
+    return response.choices[0].message.content
+
+# This function runs the chatbot conversation
+def main():
+    message_log_sophia = [] # Stores Sophia's conversation log
+    message_log_solomon = [] # Stores Solomon's conversation log
+    first_request = True # Tracks if it's the first message exchange
+    keepGoing = True # Controls whether the conversation continues
+    end_phrases = ["thank you", "Thank you", "thanks", "i appreciate it", "i’ll be sure to reach out", "take care", "goodbye", "Have a fanastic day!"]
+
+    with open(savefile_name,mode='w',encoding='utf-8-sig') as logOUT:
+        while keepGoing:
+            if first_request:
+                # Adds initial role instructions for both bots
+                message_log_sophia.append({"role": "system", "content": role_sophia})
+                message_log_solomon.append({"role": "system", "content": role_solomon})
+
+                # Logs initial roles and prompt to file
+                outputfile = "Sophia - Role: "+role_sophia+"\nSolomon - Role: "+role_solomon+"\nStarting Prompt for Sophia: "+starting_prompt+"\n"
+                logOUT.write(outputfile)
+
+                # Begins the dialogue where Sophia receives starting prompt
+                message_log_sophia.append({"role": "user", "content": starting_prompt})
+                SophiaSays = send_message(message_log_sophia)
+                message_log_sophia.append({"role": "assistant", "content": SophiaSays})
+                print(f"Sophia: {SophiaSays}\n")
+                
+                # Solomon responds to Sophia
+                message_log_solomon.append({"role": "user", "content": SophiaSays})
+                SolomonSays = send_message(message_log_solomon)
+                message_log_solomon.append({"role": "assistant", "content": SolomonSays})
+                print(f"Solomon: {SolomonSays}\n")
+        
+                outputfile = "Sophia: "+SophiaSays+"\nSolomon: "+SolomonSays+"\n"
+                logOUT.write(outputfile)
+                first_request = False
+                
+            else:
+                # Continues conversation with new message from Sophia
+                message_log_sophia.append({"role": "user", "content": SolomonSays})
+                SophiaSays = send_message(message_log_sophia)
+                message_log_sophia.append({"role": "assistant", "content": SophiaSays})
+                print(f"Sophia: {SophiaSays}\n")
+
+                # Ends conversation if Sophia signals completion
+                if any(phrase in SophiaSays.lower() for phrase in end_phrases):
+                    keepGoing = False    
+                
+                # Solomon responds to the latest message from Sophia
+                message_log_solomon.append({"role": "user", "content": SophiaSays})
+                SolomonSays = send_message(message_log_solomon)
+                message_log_solomon.append({"role": "assistant", "content": SolomonSays})
+                print(f"Solomon: {SolomonSays}\n")
+
+                # Ends conversation if Solomon signals completion
+                if any(phrase in SolomonSays.lower() for phrase in end_phrases):
+                    keepGoing = False
+
+                # Logs conversation exchange to file
+                outputfile = "Sophia: "+SophiaSays+"\nSolomon: "+SolomonSays+"\n"
+                logOUT.write(outputfile)        
+
+# This runs main function if file is executed
+if __name__ == "__main__":
+    main()
